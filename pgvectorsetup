@@ -1,0 +1,237 @@
+# 📘 Complete Guide: PostgreSQL + pgvector Setup (Step-by-Step)
+
+---
+
+## 🧱 1. Install PostgreSQL
+
+```bash
+sudo apt update
+sudo apt install postgresql postgresql-contrib
+```
+
+👉 Installs PostgreSQL server and basic tools.
+
+---
+
+## 🔐 2. Fix Authentication (Reset Password)
+
+### Edit config file:
+
+```bash
+sudo nano /etc/postgresql/16/main/pg_hba.conf
+```
+
+### Change:
+
+```text
+local   all             postgres                                md5
+```
+
+👉 To:
+
+```text
+local   all             postgres                                trust
+```
+
+### Restart:
+
+```bash
+sudo systemctl restart postgresql
+```
+
+### Login without password:
+
+```bash
+sudo -i -u postgres
+psql
+```
+
+### Set password:
+
+```sql
+ALTER USER postgres WITH PASSWORD 'postgres';
+```
+
+### Exit:
+
+```sql
+\q
+exit
+```
+
+### Revert back to secure mode:
+
+```text
+local   all             postgres                                md5
+```
+
+Restart again:
+
+```bash
+sudo systemctl restart postgresql
+```
+
+---
+
+## 🏗️ 3. Create User & Database
+
+### Login:
+
+```bash
+psql -U postgres -h localhost
+```
+
+### Create user:
+
+```sql
+CREATE USER langchain WITH PASSWORD 'password';
+```
+
+### Create database:
+
+```sql
+CREATE DATABASE vectordb OWNER langchain;
+```
+
+### Grant privileges:
+
+```sql
+GRANT ALL PRIVILEGES ON DATABASE vectordb TO langchain;
+```
+
+---
+
+## ⚙️ 4. Install pgvector
+
+### Install dev package:
+
+```bash
+sudo apt install postgresql-server-dev-16
+```
+
+### Build pgvector:
+
+```bash
+git clone https://github.com/pgvector/pgvector.git
+cd pgvector
+
+make clean
+make PG_CONFIG=/usr/lib/postgresql/16/bin/pg_config
+sudo make install PG_CONFIG=/usr/lib/postgresql/16/bin/pg_config
+```
+
+### Restart:
+
+```bash
+sudo systemctl restart postgresql
+```
+
+---
+
+## 🧩 5. Enable pgvector Extension
+
+```bash
+psql -U postgres -h localhost -d vectordb
+```
+
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+\dx
+```
+
+👉 Confirms pgvector is installed.
+
+---
+
+## 🗄️ 6. Create Vector Table
+
+```sql
+CREATE TABLE documents (
+    id BIGSERIAL PRIMARY KEY,
+    content TEXT,
+    metadata JSONB,
+    embedding VECTOR(384)
+);
+```
+
+👉 `VECTOR(384)` = embedding size (depends on model)
+
+---
+
+## 📥 7. Insert Data
+
+```sql
+INSERT INTO documents (content, metadata, embedding)
+VALUES (
+    'LangChain is used for LLM apps',
+    '{"source": "note1"}',
+    '[0.1, 0.2, 0.3]'
+);
+```
+
+---
+
+## 🔍 8. Similarity Search
+
+```sql
+SELECT content,
+       embedding <=> '[0.1, 0.2, 0.3]' AS distance
+FROM documents
+ORDER BY embedding <=> '[0.1, 0.2, 0.3]'
+LIMIT 5;
+```
+
+### Operators:
+
+* `<->` → Euclidean distance
+* `<=>` → Cosine distance
+* `<#>` → Inner product
+
+---
+
+## ⚡ 9. Create Index (for performance)
+
+```sql
+CREATE INDEX documents_embedding_idx
+ON documents
+USING hnsw (embedding vector_cosine_ops);
+```
+
+👉 Makes similarity search fast for large data.
+
+---
+
+## 🔄 Useful Commands
+
+```bash
+pg_lsclusters                  # Check running PostgreSQL versions
+sudo systemctl restart postgresql
+psql -U postgres -h localhost -d vectordb
+```
+
+---
+
+## 🧠 Final Flow Summary
+
+```text
+Install PostgreSQL
+→ Fix authentication
+→ Create user & database
+→ Install pgvector
+→ Enable extension
+→ Create vector table
+→ Insert embeddings
+→ Run similarity search
+```
+
+---
+
+## 🚀 Next Steps
+
+* Connect with LangChain
+* Use HuggingFace embeddings
+* Build RAG system
+
+---
+
+**End of Document**
